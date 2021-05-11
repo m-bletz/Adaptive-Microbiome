@@ -1,0 +1,2189 @@
+---
+title: "Meta-analysis"
+author: "Molly"
+date: " April 2021"
+output:
+  rmdformats::readthedown:
+    highlight: tango
+    code_folding: hide
+  html_document:
+    smart_extension: no
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    df_print: paged
+    code_folding: hide
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,warning = FALSE)
+```
+
+
+# Overview
+
+```{r pressure, echo=FALSE, out.width = '100%'}
+knitr::include_graphics("Table.png")
+```
+
+**Alpha&Beta: Details on meta-analysis method**
+
++ Inverse variance method
++ Maximum-likelihood estimator for tau^2
++ Q-profile method for confidence interval of tau^2 and tau
++ Hartung-Knapp adjustment for random effects model
++ Hedges' g (bias corrected standardised mean difference)
+
+
+**Correlations: Details on meta-analytical method**
+
++ Inverse variance method
++ Maximum-likelihood estimator for tau^2
++ Q-profile method for confidence interval of tau^2 and tau
++ Hartung-Knapp adjustment for random effects model
++ Fisher's z transformation of correlations
+
+
+# Alpha Diversity
+
+**Meta Analysis**
+
+
+```{r}
+
+library(dmetar)
+library(tidyverse)
+library(ggpubr)
+
+AlphaData = read_tsv("./Alpha_Diversity/Metaanalysis-AlphaDiv_Input_Mar2021.txt")%>%
+  filter(!Author=="Jimenez_2019_adults")%>%
+  arrange(Author)
+
+AdaptiveMeta = read_tsv("./Metadata_Files/Adaptive_MetaAnalysis_Metadata.txt") 
+
+```
+
+<style>
+  .superbigimage{
+      overflow-y:scroll;
+      white-space: nowrap;
+  }
+
+  .superbigimage img{
+     max-width: none;
+  }
+
+</style>
+
+## Richness {.tabset .tabset-fade}
+
+### Effect model
+
+```{r }
+
+MetaRaw_Richness = AlphaData %>%
+  filter(Parameter =="Richness")
+
+EffectSize_Richness= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_Richness,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_Richness_df = as.data.frame(EffectSize_Richness)
+
+#sink("Richness_results.txt")
+#print(EffectSize_Richness)
+#sink()
+
+EffectSize_Richness
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10}
+meta::forest(EffectSize_Richness,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+**findling around with plots graphics**
+
+```{r}
+
+MeanTE = mean(EffectSize_Richness_df$TE)
+AvgSE = mean(EffectSize_Richness_df$seTE)
+
+  EffectSize_Richness_df %>%
+  mutate(SampleSize = n.e+n.c) %>%
+  ggplot(aes(x= studlab, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_hline(yintercept = MeanTE, color="blue")+
+  geom_hline(yintercept = AvgSE, color="blue", linetype = "dashed")+
+  geom_hline(yintercept = 0-AvgSE, color="blue", linetype = "dashed")+
+  geom_point(aes(size  = SampleSize)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.65), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("x")+
+  ylab("y") +
+  coord_flip(ylim = c(-2.5,2.5))
+```
+
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_Richness)
+
+RichOutL <- find.outliers(EffectSize_Richness)
+
+meta::forest(RichOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+Rich_inf.analysis <- InfluenceAnalysis(x = EffectSize_Richness,
+                                  random = TRUE)
+
+summary(Rich_inf.analysis)
+
+plot(Rich_inf.analysis, "influence")
+
+plot(Rich_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+Rich_m.rma <- metafor::rma(yi = EffectSize_Richness$TE, 
+             sei = EffectSize_Richness$seTE,
+             method = EffectSize_Richness$method.tau,
+             test = "knha")
+
+Rich_dat.gosh <- metafor::gosh(Rich_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(Rich_dat.gosh, alpha= 0.1, col = "blue")
+
+Rich_gosh.diag <- gosh.diagnostics(Rich_dat.gosh)
+
+summary(Rich_gosh.diag)
+
+plot(Rich_gosh.diag, which = "cluster")
+
+plot(Rich_gosh.diag, which = "outlier")
+
+```
+
+## Shannon {.tabset .tabset-fade}
+
+### Effect model
+
+```{r 4}
+
+MetaRaw_Shannon = AlphaData %>%
+  filter(Parameter =="Shannon.Index")
+
+EffectSize_Shannon= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_Shannon,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_Shannon_df = as.data.frame(EffectSize_Shannon)
+
+#sink("Shannon_results.txt")
+#print(EffectSize_Shannon)
+#sink()
+
+EffectSize_Shannon
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+meta::forest(EffectSize_Shannon,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",
+       colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_Shannon)
+
+ShanOutL <- find.outliers(EffectSize_Shannon)
+
+meta::forest(ShanOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+Shan_inf.analysis <- InfluenceAnalysis(x = EffectSize_Shannon,
+                                  random = TRUE)
+
+summary(Shan_inf.analysis)
+
+plot(Shan_inf.analysis, "influence")
+
+plot(Shan_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+Shan_m.rma <- metafor::rma(yi = EffectSize_Shannon$TE, 
+             sei = EffectSize_Shannon$seTE,
+             method = EffectSize_Shannon$method.tau,
+             test = "knha")
+
+Shan_dat.gosh <- metafor::gosh(Shan_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(Shan_dat.gosh, alpha= 0.1, col = "blue")
+
+Shan_gosh.diag <- gosh.diagnostics(Shan_dat.gosh)
+
+summary(Shan_gosh.diag)
+
+plot(Shan_gosh.diag, which = "cluster")
+
+plot(Shan_gosh.diag, which = "outlier")
+
+```
+
+
+## Effective Species {.tabset .tabset-fade}
+
+### Effect model
+
+```{r 6}
+MetaRaw_EffSpecies = AlphaData %>%
+  filter(Parameter =="Effective.Species")
+
+EffectSize_EffSpecies= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_EffSpecies,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_EffSpecies_df = as.data.frame(EffectSize_EffSpecies)
+
+#sink("EffSpecies_results.txt")
+#print(EffectSize_EffSpecies)
+#sink()
+
+EffectSize_EffSpecies
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+meta::forest(EffectSize_EffSpecies,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",
+       colgap.forest.left = unit(15,"mm"),mar = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+### Outlier & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_EffSpecies)
+
+EffSpOutL <- find.outliers(EffectSize_EffSpecies)
+
+meta::forest(EffSpOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+EffSp_inf.analysis <- InfluenceAnalysis(x = EffectSize_EffSpecies,
+                                  random = TRUE)
+
+summary(EffSp_inf.analysis)
+
+plot(EffSp_inf.analysis, "influence")
+
+plot(EffSp_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+EffSp_m.rma <- metafor::rma(yi = EffectSize_EffSpecies$TE, 
+             sei = EffectSize_EffSpecies$seTE,
+             method = EffectSize_EffSpecies$method.tau,
+             test = "knha")
+
+EffSp_dat.gosh <- metafor::gosh(EffSp_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(EffSp_dat.gosh, alpha= 0.1, col = "blue")
+
+EffSp_gosh.diag <- gosh.diagnostics(EffSp_dat.gosh)
+
+summary(EffSp_gosh.diag)
+
+plot(EffSp_gosh.diag, which = "cluster")
+
+plot(EffSp_gosh.diag, which = "outlier")
+
+```
+
+## Phylogenetic Diversity {.tabset .tabset-fade}
+
+### Effect model
+
+```{r}
+
+MetaRaw_FaithPD = AlphaData %>%
+  filter(Parameter =="Faith.PD")
+
+EffectSize_FaithPD= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_FaithPD,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_FaithPD_df = as.data.frame(EffectSize_FaithPD)
+
+#sink("FaithPD_results.txt")
+#print(EffectSize_FaithPD)
+#sink()
+EffectSize_FaithPD
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+meta::forest(EffectSize_FaithPD,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",
+       colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+### Outliers & GOSH
+
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_FaithPD)
+
+FaithPDOutL <- find.outliers(EffectSize_FaithPD)
+
+meta::forest(FaithPDOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+FaithPD_inf.analysis <- InfluenceAnalysis(x = EffectSize_FaithPD,
+                                  random = TRUE)
+
+summary(FaithPD_inf.analysis)
+
+plot(FaithPD_inf.analysis, "influence")
+
+plot(FaithPD_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+FaithPD_m.rma <- metafor::rma(yi = EffectSize_FaithPD$TE, 
+             sei = EffectSize_FaithPD$seTE,
+             method = EffectSize_FaithPD$method.tau,
+             test = "knha")
+
+FaithPD_dat.gosh <- metafor::gosh(FaithPD_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(FaithPD_dat.gosh, alpha= 0.1, col = "blue")
+
+FaithPD_gosh.diag <- gosh.diagnostics(FaithPD_dat.gosh)
+
+summary(FaithPD_gosh.diag)
+
+plot(FaithPD_gosh.diag, which = "cluster")
+
+plot(FaithPD_gosh.diag, which = "outlier")
+
+```
+
+
+## Evenness {.tabset .tabset-fade}
+
+### Effect model
+
+```{r}
+MetaRaw_Evenness = AlphaData %>%
+  filter(Parameter =="Peilou.Evenness")
+
+EffectSize_Evenness= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_Evenness,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_Evenness_df = as.data.frame(EffectSize_Evenness)
+#sink("Evenness_results.txt")
+#print(EffectSize_Evenness)
+#sink()
+EffectSize_Evenness
+
+```
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+meta::forest(EffectSize_Evenness,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_Evenness)
+
+EvenOutL <- find.outliers(EffectSize_Evenness)
+
+meta::forest(EvenOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+## Antifungal Richness {.tabset .tabset-fade}
+
+### Effect model
+
+```{r 12}
+MetaRaw_AFRichness = AlphaData %>%
+  filter(Parameter =="Antifungal.Richness")
+
+EffectSize_AFRichness= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_AFRichness,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_AFRichnesss_df = as.data.frame(EffectSize_AFRichness)
+
+#sink("AFRichness_results.txt")
+#print(EffectSize_AFRichness)
+#sink()
+EffectSize_AFRichness
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+meta::forest(EffectSize_AFRichness,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",
+       colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_AFRichness)
+
+AFRichOutL <- find.outliers(EffectSize_AFRichness)
+
+meta::forest(AFRichOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+AFRich_inf.analysis <- InfluenceAnalysis(x = EffectSize_AFRichness,
+                                  random = TRUE)
+
+summary(AFRich_inf.analysis)
+
+plot(AFRich_inf.analysis, "influence")
+
+plot(AFRich_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+AFRich_m.rma <- metafor::rma(yi = EffectSize_AFRichness$TE, 
+             sei = EffectSize_AFRichness$seTE,
+             method = EffectSize_AFRichness$method.tau,
+             test = "knha")
+
+AFRich_dat.gosh <- metafor::gosh(AFRich_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(AFRich_dat.gosh, alpha= 0.1, col = "blue")
+
+AFRich_gosh.diag <- gosh.diagnostics(AFRich_dat.gosh)
+
+summary(AFRich_gosh.diag)
+
+plot(AFRich_gosh.diag, which = "cluster")
+
+plot(AFRich_gosh.diag, which = "outlier")
+
+```
+
+## Proporional Antifungal Function {.tabset .tabset-fade}
+
+### Effect model
+
+```{r }
+MetaRaw_ProporAF = AlphaData %>%
+  filter(Parameter =="Proportion.Antifungal.Reads")
+
+EffectSize_ProporAF= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+         data = MetaRaw_ProporAF,
+         comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                  sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_ProporAF_df = as.data.frame(EffectSize_ProporAF)
+
+#sink("ProporAF_results.txt")
+#print(EffectSize_ProporAF)
+#sink()
+EffectSize_ProporAF
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10  }
+meta::forest(EffectSize_ProporAF,
+       layout = "JAMA",
+       text.predict = "95% PI",
+       col.predict = "black",
+       colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(EffectSize_ProporAF)
+
+ProPorAFOutL <- find.outliers(EffectSize_ProporAF)
+
+meta::forest(ProPorAFOutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+ProporAF_inf.analysis <- InfluenceAnalysis(x = EffectSize_ProporAF,
+                                  random = TRUE)
+
+summary(ProporAF_inf.analysis)
+
+plot(ProporAF_inf.analysis, "influence")
+
+plot(ProporAF_inf.analysis, "baujat")
+
+```
+
+```{r eval=FALSE, include=FALSE}
+ProporAF_m.rma <- metafor::rma(yi = EffectSize_ProporAF$TE, 
+             sei = EffectSize_ProporAF$seTE,
+             method = EffectSize_ProporAF$method.tau,
+             test = "knha")
+
+ProporAF_dat.gosh <- metafor::gosh(Rich_m.rma,subsets = 10000)
+```
+
+```{r eval=FALSE, include=FALSE}
+
+plot(Rich_dat.gosh, alpha= 0.1, col = "blue")
+
+Rich_gosh.diag <- gosh.diagnostics(Rich_dat.gosh)
+
+summary(Rich_gosh.diag)
+
+plot(Rich_gosh.diag, which = "cluster")
+
+plot(Rich_gosh.diag, which = "outlier")
+
+```
+
+## Combining Data
+
+```{r 16}
+
+EffectSize_Richness_df2 = EffectSize_Richness_df %>% add_column(Parameter = "Richness")
+EffectSize_EffSpecies_df2 = EffectSize_EffSpecies_df %>% add_column(Parameter = "EffectiveSpecies")
+EffectSize_FaithPD_df2 = EffectSize_FaithPD_df %>% add_column(Parameter = "FaithPD")
+EffectSize_Evenness_df2 = EffectSize_Evenness_df %>% add_column(Parameter = "Evenness")
+EffectSize_AFRichnesss_df2 = EffectSize_AFRichnesss_df %>% add_column(Parameter = "AFRichness")
+EffectSize_ProporAF_df2 = EffectSize_ProporAF_df %>% add_column(Parameter = "ProporAF")
+
+Compiled_EffectSizes = bind_rows(EffectSize_Richness_df2,EffectSize_EffSpecies_df2, EffectSize_FaithPD_df2, EffectSize_Evenness_df2,EffectSize_AFRichnesss_df2,EffectSize_ProporAF_df2)
+
+Compiled_EffectSizes_R_AF = bind_rows(EffectSize_Richness_df2,EffectSize_ProporAF_df2)
+```
+
+**Overall Plot**
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+Compiled_EffectSizes_Meta = Compiled_EffectSizes %>%
+    rename(StudyName=studlab)%>%
+  mutate(SampleSize = n.e+n.c) %>%
+    left_join(.,AdaptiveMeta, by = "StudyName") %>%
+  filter(!StudyName=="Jimenez_2019_adults")
+
+  Compiled_EffectSizes_Meta  %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = PopulationTrajectory)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~Parameter, scales = "free_x")
+
+```
+</div>
+
+## Exploratory Plots
+
+Population Trajectory
+
+```{r}
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="Richness") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = PopulationTrajectory)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~PopulationTrajectory, scales = "free_x")
+
+```
+
+HostOrder
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = HostOrder)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~HostOrder, scales = "free_x")
+
+```
+
+LifeStageUpdated
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = LifeStageUpdated)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~LifeStageUpdated, scales = "free_x")
+
+```
+
+LocationContinent
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = LocationContinent)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~LocationContinent, scales = "free_x")
+
+```
+
+Pathogen
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = Pathogen)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~Pathogen, scales = "free_x")
+
+```
+
+Comparison Type
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = ComparisonType)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~ComparisonType, scales = "free_x")
+
+```
+
+FieldLab
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="ProporAF") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = FieldLab)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~FieldLab, scales = "free_x")
+
+```
+
+HostHabitat
+
+```{r}
+
+  Compiled_EffectSizes_Meta  %>%
+  filter(Parameter=="Richness") %>%
+  ggplot(aes(x= StudyName, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = SampleSize,colour = HostHabitat)) + #TE >0
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  #scale_color_manual(name = 'TE > 0', values = setNames(c('blue','red'),c(T, F)))+
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size(Hedge's g)") +
+  coord_flip(ylim = c(-3,3))+
+  facet_wrap(~HostHabitat, scales = "free_x")
+
+```
+
+## Sub-group analysis {.tabset .tabset-fade}
+
+<span style="color: purple;"> Another source of between-study heterogeneity making our effect size estimate less precise could be that there are slight differences in the study design or intervention components between the studies. (https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/) </span>
+
+```{r}
+AdaptiveMeta = read_tsv("./Metadata_Files/Adaptive_MetaAnalysis_Metadata.txt") 
+
+AdaptiveMeta_subset = AdaptiveMeta %>%
+  filter(StudyName %in% EffectSize_Richness_df$studlab)%>%
+  arrange(StudyName)
+```
+
+### Richness
+
+**Comparison Type (Richness)**
+
+<div class="superbigimage">
+```{r, fig.width=10,fig.height=10}
+
+#CompType.subgroup<-meta::update.meta(EffectSize_Richness, 
+                            # byvar=ComparisonType, 
+                            # comb.random = FALSE, 
+                            # comb.fixed = TRUE)
+
+CompType.subgroupmix <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_Richness,
+                                subgroups = AdaptiveMeta_subset$ComparisonType)
+
+CompType.subgroupmix
+
+meta::forest(CompType.subgroupmix,spacing =0.5,fontsize = 8)
+
+```
+<div>
+
+**Population Trajectory (Richness)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+#CompType.subgroup<-meta::update.meta(EffectSize_Richness, 
+                            # byvar=ComparisonType, 
+                            # comb.random = FALSE, 
+                            # comb.fixed = TRUE)
+
+PopTraj.subgroupmix <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_Richness, subgroups = AdaptiveMeta_subset$PopulationTrajectory)
+
+PopTraj.subgroupmix
+
+meta::forest(PopTraj.subgroupmix,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+### Antifungal Function
+
+**Comparison Type (Antifungal Function)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+CompType.subgroupmix_AFpro <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_ProporAF,
+                                subgroups = AdaptiveMeta_subset$ComparisonType)
+
+CompType.subgroupmix_AFpro
+
+meta::forest(CompType.subgroupmix_AFpro,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+**Population Trajectory (Antifungal Function)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+PopTraj.subgroupmix_AFpro <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_ProporAF,
+                                subgroups = AdaptiveMeta_subset$PopulationTrajectory)
+
+PopTraj.subgroupmix_AFpro
+meta::forest(PopTraj.subgroupmix_AFpro,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+### Faith's Phylogenetic Diversity
+
+**Comparison Type (Phylo Diversity)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+CompType.subgroupmix_PD <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_FaithPD, subgroups = AdaptiveMeta_subset$ComparisonType)
+
+CompType.subgroupmix_PD
+
+meta::forest(CompType.subgroupmix_PD,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+**Population Trajectory (Phylo Diversity)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+PopTraj.subgroupmix_PD <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_FaithPD, subgroups = AdaptiveMeta_subset$PopulationTrajectory)
+
+PopTraj.subgroupmix_PD
+meta::forest(PopTraj.subgroupmix_PD,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+### Effective species
+
+**Comparison Type (Effective Species)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+CompType.subgroupmix_EffSp <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_EffSpecies, subgroups = AdaptiveMeta_subset$ComparisonType)
+
+CompType.subgroupmix_EffSp
+
+meta::forest(CompType.subgroupmix_EffSp,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+**Population Trajectory (Effective Species)**
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10}
+
+PopTraj.subgroupmix_EffSp <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_EffSpecies, subgroups = AdaptiveMeta_subset$PopulationTrajectory)
+
+PopTraj.subgroupmix_EffSp
+meta::forest(PopTraj.subgroupmix_EffSp,spacing =0.5,fontsize = 8)
+
+```
+</div>
+
+## Sub Meta-analysis
+
+```{r}
+
+ExpConGroup = Compiled_EffectSizes_Meta %>%
+  filter(ComparisonType =="Exposure-Control")
+  
+ExpConList = as.vector(ExpConGroup$StudyName)
+  
+MetaRaw_Richness_ExpCon = AlphaData %>%
+  filter(Parameter =="Richness") %>%
+  filter(Author %in% ExpConList)
+
+EffectSize_Richness_ExpCon= meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),data = MetaRaw_Richness_ExpCon,comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE, sm="SMD", hakn = FALSE, method.tau = "ML")
+
+EffectSize_Richness_ExpCon_df = as.data.frame(EffectSize_Richness_ExpCon)
+
+sink("Richness_results.txt")
+print(EffectSize_Richness_ExpCon)
+sink()
+
+EffectSize_Richness_ExpCon
+```
+
+# Beta Diversity
+
+## Dispersion {.tabset .tabset-fade}
+
+### Effect model
+
+```{r echo=TRUE}
+# Read in Dispersion Data
+BetaData = read_tsv("./Beta_Diversity/Dispersion/Metaanalysis-BetaDiv_Input_Mar1.txt") %>% 
+  as.data.frame()%>%
+  filter(Author %in% AdaptiveMeta_subset$StudyName)%>%
+  arrange(Author)
+```
+
+```{r echo=TRUE}
+# Plot Dispersion by study
+
+EffectSize_Dispersion = meta::metacont(Ne,Me,Se,Nc,Mc,Sc,studlab = paste(Author),
+                                    data = BetaData,
+                                    comb.fixed = FALSE, comb.random = TRUE,prediction=TRUE,
+                                    sm="SMD", hakn = TRUE, method.tau = "ML")
+
+EffectSize_Dispersion_df = as.data.frame(EffectSize_Dispersion)
+
+#sink("Dispersion_results.txt")
+#print(EffectSize_Dispersion)
+#sink()
+
+EffectSize_Dispersion
+
+```
+
+
+<div class="superbigimage">
+```{r echo=TRUE}
+meta::forest(EffectSize_Dispersion,
+             layout = "JAMA",
+             text.predict = "95% Prediction Interval",
+             col.predict = "black",spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Outliers & GOSH
+
+<div class="superbigimage">
+```{r echo=TRUE}
+find.outliers(EffectSize_Dispersion)
+
+DispersionOutL <- find.outliers(EffectSize_Dispersion)
+
+meta::forest(DispersionOutL, col.predict = "blue")
+```
+</div>
+
+```{r eval=FALSE, include=FALSE}
+Disp_inf.analysis <- InfluenceAnalysis(x = EffectSize_Dispersion,
+                                       random = TRUE)
+
+summary(Disp_inf.analysis)
+
+plot(Disp_inf.analysis, "influence")
+
+plot(Disp_inf.analysis, "baujat")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+Disp_m.rma <- metafor::rma(yi = EffectSize_Dispersion$TE, 
+                           sei = EffectSize_Dispersion$seTE,
+                           method = EffectSize_Dispersion$method.tau,
+                           test = "knha")
+
+Disp_dat.gosh <- metafor::gosh(Disp_m.rma, subsets = 5000) #subset # lower = faster
+```
+
+```{r eval=FALSE, include=FALSE}
+plot(Disp_dat.gosh, alpha= 0.1, col = "blue")
+
+Disp_gosh.diag <- gosh.diagnostics(Disp_dat.gosh, km = TRUE, db = FALSE, gmm = FALSE) #flags make it run faster
+
+summary(Disp_gosh.diag)
+
+plot(Disp_gosh.diag, which = "cluster")
+
+plot(Disp_gosh.diag, which = "outlier")
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+EffectSize_Dispersion_df %>%
+  mutate(SampleSize = n.e+n.c) %>%
+  ggplot(aes(x= studlab, y = TE)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size  = log10(SampleSize))) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, alpha = 0.5), width = 0.2,show.legend = FALSE) +
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("x")+
+  ylab("y") +
+  coord_flip(ylim = c(-2.5,2.5))
+```
+
+
+## Subgroup analysis {.tabset .tabset-fade}
+
+```{r}
+
+BetaData_Meta = AdaptiveMeta_subset %>%
+  arrange(StudyName)
+```
+
+<div class="superbigimage">
+```{r, fig.width=10,fig.height=10}
+
+CompType.BetaD.subgroupmix <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_Dispersion,
+                                subgroups = BetaData_Meta$ComparisonType)
+
+CompType.BetaD.subgroupmix
+
+meta::forest(CompType.BetaD.subgroupmix,spacing =0.5,fontsize = 8)
+
+```
+<div>
+
+<div class="superbigimage">
+```{r, fig.width=10,fig.height=10}
+
+PopTraj.BetaD.subgroupmix <- dmetar::subgroup.analysis.mixed.effects(x = EffectSize_Dispersion,
+                                subgroups = BetaData_Meta$PopulationTrajectory)
+
+PopTraj.BetaD.subgroupmix
+
+meta::forest(PopTraj.BetaD.subgroupmix,spacing =0.5,fontsize = 8)
+
+```
+<div>
+
+## Adonis {.tabset .tabset-fade}
+
+```{r}
+Beta_adonis = read_tsv("./Beta_Diversity/AdaptiveMicro_BetaDiversityStats.txt")%>%
+  filter(Include=="Include")%>%
+  left_join(.,AdaptiveMeta,by="StudyName")
+
+```
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+Beta_adonis %>%
+  ggplot(aes(x= StudyName, y = AdonisF)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(color=ComparisonType,shape  = as.numeric(Adonisp) < 0.05,alpha=0.5,size =2)) + 
+  ggthemes::scale_color_colorblind()+
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size (Pseudo F)") +
+  coord_flip(ylim = c(0,10))+
+  guides()
+
+```
+</div>
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+Beta_adonis %>%
+  ggplot(aes(x= StudyName, y = AdonisR2)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(color=ComparisonType,shape  = as.numeric(Adonisp) < 0.05,alpha=0.5,size=5)) +
+  ggthemes::scale_color_colorblind()+
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Study")+
+  ylab("Effect Size (R2)") +
+  coord_flip(ylim = c(0,0.3))+
+  guides()
+
+```
+</div>
+
+## PCoA Plots {.tabset .tabset-fade}
+
+```{r}
+library(ape)
+library(qiime2R)
+library(usedist)
+library(tidyverse)
+
+```
+
+```{r}
+
+metadata<-read_csv("./Beta_Diversity/PCoA/MetaAnalysisMapping_Unweighteduni_April28.csv")
+
+
+DistanceMatrix_import<-function(x) {
+# read data:
+  UWUFmat<-read_qza(x)
+  
+  UWUFmat2 <- as.matrix(UWUFmat$data)
+
+#PCoA function
+  PCoA <- ape::pcoa(UWUFmat2)
+
+PCoA_Axes = as.data.frame(PCoA$vectors)
+PCoA_Axes2 =tibble::rownames_to_column(PCoA_Axes, "SampleID")%>%
+  dplyr::select(1:4)
+}
+
+#listing files that will be run in code below
+DistanceMatrix=list.files("./Beta_Diversity/PCoA/UnWeighted_DistanceMatrix_PCoAResults/", pattern="*distance_matrix.qza")%>%
+  str_c("./Beta_Diversity/PCoA/UnWeighted_DistanceMatrix_PCoAResults/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+CompiledDM<- map_df(DistanceMatrix, DistanceMatrix_import)
+
+#str(CompiledDM)
+
+Mapping_PCoA=full_join(CompiledDM,metadata,by="SampleID")
+
+#write.csv(Mapping_PCoA,"metadata_PCoA.csv")
+
+```
+
+**Plot PCoA**
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+
+Mapping_PCoA %>%
+  ggplot(aes(x=Axis.1, y=Axis.2, color = Pathogen)) +
+  geom_point(aes(color = Pathogen, alpha=0.5))+
+   scale_color_manual(values = c("#087CAF", "#E7B800"),name = "Bd Status") +
+  stat_ellipse(type = "t",linetype = 2)+
+   theme_classic() +
+  xlab("PCo1") +
+  ylab("PCo2")+
+  facet_wrap(~Study, ncol = 7)
+
+```
+</div>
+
+# Correlational Analysis
+
+## Correlation (Kendall) calculations
+
+**Pathogen Load to Antifungal Proportion**
+
+```{r}
+
+####FUNCTIONs####
+PL2AFpor_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$Propor_TotalAntiFungal,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2AFporDataCompile<- map_df(files, PL2AFpor_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2AFpor_CompileData <- cbind(FileNames,PL2AFporDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2AFpor_CompileData, "./CorrResults/PL2AFpor_Correlation_CompileData.txt")
+```
+
+**Pathogen Load to Antifungal Richness**
+
+```{r}
+
+####FUNCTIONs####
+PL2AFRich_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$AntiFungal_Richness,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2AFRichDataCompile<- map_df(files,PL2AFRich_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2AFRich_CompileData = cbind(FileNames,PL2AFRichDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2AFRich_CompileData, "./CorrResults/PL2AFRich_Correlation_CompileData.txt")
+```
+
+**Pathogen Load to sOTU Richness**
+
+```{r}
+
+####FUNCTIONs####
+PL2OTURich_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$observed_otus,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2OTURichDataCompile<- map_df(files, PL2OTURich_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2OTURich_CompileData = cbind(FileNames,PL2OTURichDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2OTURich_CompileData, "./CorrResults/PL2OTURich_Correlation_CompileData.txt")
+
+```
+
+**Pathogen Load to Shannon**
+
+```{r}
+
+####FUNCTIONs####
+PL2Shannon_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$shannon,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2ShannonDataCompile<- map_df(files, PL2Shannon_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2Shannon_CompileData = cbind(FileNames,PL2ShannonDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2Shannon_CompileData, "./CorrResults/PL2Shannon_Correlation_CompileData.txt")
+```
+
+**Pathogen Load to Effective Species**
+
+```{r}
+
+####FUNCTIONs####
+PL2EffSp_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$ExpShannon,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2EffSpDataCompile<- map_df(files, PL2EffSp_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2EffSp_CompileData = cbind(FileNames,PL2EffSpDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2EffSp_CompileData, "./CorrResults/PL2EffSp_Correlation_CompileData.txt")
+```
+
+**Pathogen Load to Faiths PD**
+
+```{r}
+
+####FUNCTIONs####
+PL2PhyloD_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$faith_pd,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2PhyloDDataCompile<- map_df(files, PL2PhyloD_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2PhyloD_CompileData = cbind(FileNames,PL2PhyloDDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(PL2PhyloD_CompileData, "./CorrResults/PL2PhyloD_Correlation_CompileData.txt")
+
+```
+
+**Pathogen Load to Pielou's Evenness**
+
+```{r}
+
+####FUNCTIONs####
+PL2Evenness_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$PathogenLoad,AdaptiveMicroData$pielou_e,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+PL2EvennessDataCompile<- map_df(files, PL2Evenness_Correlation)
+
+FileNames = as.data.frame(files)
+
+PL2Evenness_CompileData = cbind(FileNames,PL2EvennessDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+
+  
+write_tsv(PL2Evenness_CompileData, "./CorrResults/PL2Evenness_Correlation_CompileData.txt")
+
+```
+
+**Richness to Antifungal Function**
+
+```{r}
+
+####FUNCTIONs####
+Rich2AFpor_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$observed_otus,AdaptiveMicroData$Propor_TotalAntiFungal,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+Rich2AFporDataCompile<- map_df(files, Rich2AFpor_Correlation)
+
+FileNames = as.data.frame(files)
+
+Rich2AFpor_CompileData <- cbind(FileNames,Rich2AFporDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(Rich2AFpor_CompileData, "./CorrResults/Rich2AFpor_Correlation_CompileData.txt")
+```
+
+**Richness to Antifungal Riichness**
+
+```{r}
+
+####FUNCTIONs####
+Rich2AFRich_Correlation<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x)
+
+CorrResults <- cor.test(AdaptiveMicroData$observed_otus,AdaptiveMicroData$AntiFungal_Richness,method = c("kendall"))
+
+Results <- CorrResults %>% 
+  unlist(use.names = TRUE) %>%
+  as.data.frame() %>% 
+  t()
+
+SampleSize = AdaptiveMicroData %>%
+  summarize(n=n())
+
+Results = as.data.frame(Results)
+
+Results2 = cbind(Results,SampleSize)
+
+write_tsv(Results2, "resultsCor.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/") %>%
+  str_c("./CorrelationData/", .)
+
+# using a function with map_df to read and gather each core file into one file 
+Rich2AFRichDataCompile<- map_df(files, Rich2AFRich_Correlation)
+
+FileNames = as.data.frame(files)
+
+Rich2AFRich_CompileData <- cbind(FileNames,Rich2AFRichDataCompile) %>%
+  mutate_all(~gsub("./CorrelationData/", "", .))
+  
+write_tsv(Rich2AFRich_CompileData, "./CorrResults/Rich2AFRich_Correlation_CompileData.txt")
+```
+
+**Combining Correlation data & merging metadata**
+
+
+```{r}
+
+
+PL2AFRich_CompileData = PL2AFRich_CompileData %>%
+  add_column(statistic.T = "NA")
+
+#PL2OTURich_CompileData = PL2OTURich_CompileData %>%
+  #add_column(statistic.T = "NA")
+
+Comb_Cor_StatsData = gdata::combine(PL2AFpor_CompileData,PL2AFRich_CompileData, PL2OTURich_CompileData,PL2EffSp_CompileData,PL2PhyloD_CompileData,PL2Evenness_CompileData,PL2Shannon_CompileData)
+```
+
+
+```{r}
+FileLinker = read_tsv("File_Linker_Correlations.txt")
+
+Comb_Cor_StatsData_Meta = Comb_Cor_StatsData %>%
+  left_join(.,FileLinker, by = "files") %>%
+  left_join(.,AdaptiveMeta, by = "StudyName")
+
+```
+
+## Correlation Effect plot
+
+*This has the Tau value on the x axis which indicates the magnitude and direction of the correlation. Points are sized by the z-statistic, indicating "strength of effect" (?), and shape indicates p value significance.  Lastly color denotes comparison type*
+
+```{r}
+Comb_Cor_StatsData_Meta %>%
+  filter(!is.na(files))%>%
+  ggplot(aes(x = StudyName, y = as.numeric(estimate.tau))) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(size = abs(as.numeric(statistic.z)),colour = ComparisonType, shape  = as.numeric(p.value) < 0.05)) +
+  scale_size_continuous(range = c(1,4)) +
+  ggthemes::scale_color_colorblind()+
+  theme_classic()+
+  xlab("Study")+
+  ylab("Tau Value (sized by z value)") +
+  ggtitle("Correlations") +
+  coord_flip()+
+  facet_wrap(~source)
+```
+
+## Individual Correlation Plots 
+
+```{r}
+
+Adaptive_Correlation_Data<-function(x) {
+  # read data:
+  AdaptiveMicroData<- read_tsv(x) %>%
+    dplyr::select(SampleID,PathogenLoad,Propor_TotalAntiFungal,AntiFungal_Richness,observed_otus, ExpShannon,faith_pd, pielou_e)
+  
+  write_tsv(AdaptiveMicroData, "AdaptiveMicroData_Corr.txt")
+}
+
+##listing files that will be run in code below
+files <- list.files("./CorrelationData/", recursive = TRUE) %>%
+  str_c("./CorrelationData/", .)
+
+files_df = as.data.frame(files) %>%
+  rownames_to_column("Dataset")
+
+# using a function with map_df to read and gather each core file into one file 
+Adaptive_Correlation_Data_Compile<- map_df(files, Adaptive_Correlation_Data, .id = "Dataset") %>%
+  left_join(.,files_df, by =  "Dataset")%>%
+  mutate(files = str_remove_all(files, './CorrelationData/')) %>%
+  mutate(files = str_remove_all(files, '.txt'))
+
+```
+
+**Pathogen Load --> Richness**
+<div class="superbigimage">
+```{r,fig.width=20,fig.height=10 }
+library(ggpubr)
+
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),observed_otus)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("sOTU Richness") +
+  facet_wrap(~files, scales = "free",ncol = 4)
+```
+</div>
+**Pathogen Load --> Antifungal Function**
+<div class="superbigimage">
+```{r,fig.width=20,fig.height=10 }
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),Propor_TotalAntiFungal)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("AF Function") +
+  facet_wrap(~files, scales = "free",ncol = 4)
+```
+</div>
+**Pathogen Load --> Antifungal Richness**
+<div class="superbigimage">
+```{r,fig.width=20,fig.height=10 }
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),AntiFungal_Richness)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("AF Richness") +
+  facet_wrap(~files, scales = "free",ncol = 4) 
+```
+</div>
+
+**Pathogen Load --> Phylogenetic diversity**
+<div class="superbigimage">
+```{r,fig.width=20,fig.height=10 }
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),faith_pd)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("AF Richness") +
+  facet_wrap(~files, scales = "free",ncol = 4)
+
+```
+</div>
+
+**Pathogen Load --> Evenness**
+<div class="superbigimage">
+```{r,fig.width=20,fig.height=10 }
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),pielou_e)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("AF Richness") +
+  facet_wrap(~files, scales = "free",ncol = 4)
+
+```
+</div>
+
+**Pathogen Load --> Effective Species**
+
+<div class="superbigimage">
+```{r, fig.width=20,fig.height=10}
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(log10(PathogenLoad+1),ExpShannon)) +
+  geom_point(aes()) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Pathogen Load") +
+  ylab("AF Richness") +
+  facet_wrap(~files, scales = "free",ncol = 4)
+```
+</div>
+
+## Alpha to AF Correlation
+
+```{r}
+Adaptive_Correlation_Data_Compile %>%
+  ggplot(aes(Propor_TotalAntiFungal,observed_otus)) +
+  geom_point(aes(alpha = 0.5,color = Dataset)) +
+  geom_smooth(method=lm, level = 0.95, color = "black") +
+  stat_cor(method = "kendall")+
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Antifungal Function") +
+  ylab("Richness")
+```
+
+## MetaCor
+
+### PL2AFpor
+#### Effect Model
+
+```{r}
+Meta_PL2AFpor <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2AFpor_CompileData,
+                 studlab = PL2AFpor_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2AFpor
+
+meta::forest(Meta_PL2AFpor,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2AFpor)
+
+Meta_PL2AFpor_OutL <- find.outliers(Meta_PL2AFpor)
+
+meta::forest(Meta_PL2AFpor_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+### PL2AFRichness
+#### Effect Model
+
+```{r}
+
+Meta_PL2AFRichness <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2AFRich_CompileData,
+                 studlab = PL2AFRich_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2AFRichness
+
+meta::forest(Meta_PL2AFRichness,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2AFRichness)
+
+Meta_PL2AFRichness_OutL <- find.outliers(Meta_PL2AFRichness)
+
+meta::forest(Meta_PL2AFRichness_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+### PL2OTURichness
+#### Effect Model
+
+```{r}
+
+Meta_PL2OTURichness <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2OTURich_CompileData,
+                 studlab = PL2OTURich_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2OTURichness
+
+meta::forest(Meta_PL2OTURichness,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2OTURichness)
+
+Meta_PL2OTURichness_OutL <- find.outliers(Meta_PL2OTURichness)
+
+meta::forest(Meta_PL2OTURichness_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+
+### Meta_PL2Phylo
+#### Effect Model
+
+```{r}
+Meta_PL2Phylo <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2PhyloD_CompileData,
+                 studlab = PL2PhyloD_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2Phylo
+
+meta::forest(Meta_PL2Phylo,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2Phylo)
+
+Meta_PL2Phylo_OutL <- find.outliers(Meta_PL2Phylo)
+
+meta::forest(Meta_PL2Phylo_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+
+### Meta_PL2Evenness
+#### Effect Model
+
+```{r}
+Meta_PL2Evenness <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2Evenness_CompileData,
+                 studlab = PL2Evenness_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+Meta_PL2Evenness
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2Evenness)
+
+Meta_PL2Evenness_OutL <- find.outliers(Meta_PL2Evenness)
+
+meta::forest(Meta_PL2Evenness_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+
+### Meta_PL2Shannon
+#### Effect Model
+
+```{r}
+
+Meta_PL2Shannon <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2Shannon_CompileData,
+                 studlab = PL2Shannon_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2Shannon
+
+meta::forest(Meta_PL2Shannon,
+       layout = "JAMA",
+       text.predict = "95% Prediction Interval",
+       col.predict = "black",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2Shannon)
+
+Meta_PL2Shannon_OutL <- find.outliers(Meta_PL2Shannon)
+
+meta::forest(Meta_PL2Shannon_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+
+
+### Meta_PL2EffSp
+#### Effect Model
+
+```{r}
+
+
+Meta_PL2EffSp <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = PL2EffSp_CompileData,
+                 studlab = PL2EffSp_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_PL2EffSp
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_PL2EffSp)
+
+Meta_PL2EffSp_OutL <- find.outliers(Meta_PL2EffSp)
+
+meta::forest(Meta_PL2EffSp_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Richness2AFpr
+#### Effect Model
+
+```{r}
+
+
+Meta_Rich2AFpor <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = Rich2AFpor_CompileData,
+                 studlab = Rich2AFpor_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_Rich2AFpor
+
+```
+
+#### Outliers & GOSH
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_Rich2AFpor)
+
+Meta_Rich2AFpor_OutL <- find.outliers(Meta_Rich2AFpor)
+
+meta::forest(Meta_Rich2AFpor_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+### Richness2AFRich
+#### Effect Model
+
+```{r}
+
+
+Meta_Rich2AFRich <- meta::metacor(as.numeric(estimate.tau), 
+                 as.numeric(n), 
+                 data = Rich2AFRich_CompileData,
+                 studlab = Rich2AFRich_CompileData$files,
+                 sm = "ZCOR",
+                 hakn = TRUE,
+                 method.tau = "ML")
+
+Meta_Rich2AFRich
+
+```
+
+#### Outliers & GOSH
+
+<div class="superbigimage">
+```{r,fig.width=10,fig.height=10 }
+find.outliers(Meta_Rich2AFRich)
+
+Meta_Rich2AFRich_OutL <- find.outliers(Meta_Rich2AFRich)
+
+meta::forest(Meta_Rich2AFRich_OutL, col.predict = "blue",colgap.forest.left = unit(15,"mm"),spacing =0.5,fontsize = 8)
+```
+</div>
+
+# Aldex2
+
+**data**
+
+```{r}
+library(tidyverse)
+Aldex_features = read_tsv("./Aldex2/Aldex2_AdaptiveMicro_FeatureDetails.txt")
+
+Aldex_study = read_tsv("./Aldex2/Aldex2_AdaptiveMicro_StudyDetails.txt")
+```
+
+**wrangle**
+```{r}
+#join in aldex study metadata
+Aldex_merge = Aldex_features %>%
+  left_join(.,Aldex_study, by = "StudyName")
+
+
+# inversing effect sign of Post Pre group to reflect Pre-Post comparison
+Aldex_merge_PostPre = Aldex_merge %>%
+  filter(GroupDirection=="Post-Pre")%>%
+  mutate(StandardizeEffect = -effect)
+
+# adding needed coolumn for mege
+Aldex_merge_PrePost = Aldex_merge %>%
+  filter(GroupDirection=="Pre-Post") %>%
+  mutate(StandardizeEffect = effect)
+
+# merged standardized data
+Aldex_merge_standardized = rbind(Aldex_merge_PostPre,Aldex_merge_PrePost)
+
+#filter to sig by 0.05 in wi.eBH column (corrected pvalue from wilcoxon test)
+Aldex_merge_standardized_Sig = Aldex_merge_standardized %>%
+  filter(wi.eBH<=0.05)
+```
+
+**Plot**
+
+<div class="superbigimage">
+
+```{r,fig.width=20,fig.height=10}
+Aldex_merge_standardized_Sig %>%
+  ggplot(aes(x= featureid, y = StandardizeEffect)) +
+  geom_hline(yintercept=0, size = 1, color = "black", alpha = 0.4) +
+  geom_point(aes(color=Phylum),size= 2,alpha=0.5) + 
+  scale_size_continuous(range = c(-2,2)) +
+  ggthemes::scale_color_pander()+
+  theme_classic()+
+  scale_x_discrete()+
+  xlab("Features")+
+  ylab("Effect Size \n neg = reduced in Post group") +
+  coord_flip(ylim = c(-3,3))+
+  guides(colour = "none")+
+  facet_wrap(~PhylumGroups, scales = "free",ncol = 2)
+
+
+#shape = guide_legend("Substrate Type"), size = guide_legend("Sample Size")
+
+```
+</div>
+
+**Model Result**
+```{r}
+
+mod = lm(StandardizeEffect~Phylum, data = Aldex_merge_standardized_Sig)
+
+summary(mod)
+
+```
+
+
+
+# Path Analysis
+
+```{r eval=FALSE, include=FALSE}
+library(piecewiseSEM)
+install.packages("piecewiseSEM")
+
+hist(Adaptive_Correlation_Data_Compile$Propor_TotalAntiFungal)
+hist(sqrt(Adaptive_Correlation_Data_Compile$Propor_TotalAntiFungal))
+
+Adaptive_Correlation_Data_Compile_filt = Adaptive_Correlation_Data_Compile %>%
+  filter(!is.na(PathogenLoad))%>%
+  filter(!is.na(observed_otus))
+
+modlist.1 = psem(
+  mod1 <- glm(log10(PathogenLoad+1) ~ log10(observed_otus+1) + Propor_TotalAntiFungal + log10(faith_pd+1), family="gaussian", data=Adaptive_Correlation_Data_Compile_filt),
+  mod2 <- glm(log10(observed_otus+1) ~ log10(PathogenLoad+1), family="gaussian", data=Adaptive_Correlation_Data_Compile_filt),
+  mod3 <- glm(log10(faith_pd+1) ~ log10(observed_otus+1) + log10(PathogenLoad+1), family="gaussian", data=Adaptive_Correlation_Data_Compile_filt),
+  mod4 <- glm(Propor_TotalAntiFungal ~ log10(observed_otus+1) + log10(PathogenLoad+1), family="gaussian", data=Adaptive_Correlation_Data_Compile_filt))
+
+
+
+summary(modlist.1, .progressBar = T)
+
+rsquared(frog_nat.modlist.1)
+```
+
